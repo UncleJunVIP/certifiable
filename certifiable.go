@@ -1,29 +1,23 @@
 package certifiable
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	_ "embed"
 	"log"
-	"os"
-	"path/filepath"
+	"net/http"
 )
 
 //go:embed certificates.crt
-var certs string
+var certs []byte
 
 func init() {
-
-	cwd, _ := os.Getwd()
-
-	if err := os.MkdirAll(filepath.Join(cwd, "certs"), 0755); err != nil {
-		log.Fatalf("Failed to create output directory: %v", err)
+	pool := x509.NewCertPool()
+	if !pool.AppendCertsFromPEM(certs) {
+		log.Fatal("Failed to append certificates")
 	}
 
-	certPath := filepath.Join(cwd, "certs", "certificates.crt")
-	if err := os.WriteFile(certPath, []byte(certs), 0644); err != nil {
-		log.Fatalf("Failed to write certificates to file: %v", err)
-	}
-
-	if err := os.Setenv("SSL_CERT_DIR", filepath.Join(cwd, "certs")); err != nil {
-		log.Fatalf("Failed to set SSL_CERT_DIR: %v", err)
+	http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{
+		RootCAs: pool,
 	}
 }
